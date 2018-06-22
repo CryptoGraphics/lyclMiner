@@ -22,7 +22,7 @@ Mesa Gallium Compute and macOS are not supported.
 ## Download
 * Binary releases: https://github.com/CryptoGraphics/lyclMiner/releases
 * Clone with `git clone https://github.com/CryptoGraphics/lyclMiner.git`  
- Follow [Building lyclMiner](#building).
+ Follow [Building lyclMiner](#building-lyclminer).
 
 ## Quick start guide
 
