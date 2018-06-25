@@ -151,9 +151,23 @@ To get started, adjust `WorkSize` parameter according to hash rate with the defa
   - more than 60mh/s: `8388608`, `12582912`, `16777216`
 
 
+### Raw device list format:
+There can be a case when all devices return the same PCIeBusId and it will be impossible to distinguish between them.  
+If there will be duplicate PCIeBusIds on the same platform, then miner will automatically switch to the `raw device list format`  
+All possible Device/Platform configurations will be listed. A `DeviceIndex` option will used instead of `PCIeBusId` and `PlatformIndex`.  
+If Device has more than one platform available, all duplicates must be handled manually.  
+**Note:** The order in which devices are listed is platform implementation defined. Prefer to use PCIeBusId version whenever possible.
+
+- **DeviceIndex**  
+Specifies a Device/Platform combination from the list.
+
+- **Generating a configuration file with raw device list**  
+`lyclMiner -gr lyclMiner.conf`
+
+
 ## Building lyclMiner
 
-Make sure that OpenCL drivers are installed. See [Supported platforms](#supported platforms).
+Make sure that OpenCL drivers are installed. See [Supported platforms](#supported-platforms).
 lyclMiner uses [premake5](https://premake.github.io/) to build platform specific projects. Download it and make sure it's available on your path, or copy `premake5` executable to the same directory as `premake5.lua` file.
 
 ### Compilers

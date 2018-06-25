@@ -497,26 +497,28 @@ int main(int argc, char** argv)
         cl_device_topology_amd topology;
         for (size_t j = 0; j < deviceIds.size(); ++j)
         {
+            lycl::device clDevice;
+            clDevice.clPlatformId = platformIds[i];
+            clDevice.clId = deviceIds[j];
+            clDevice.platformIndex = (int32_t)i;
+            clDevice.binaryFormat = lycl::BF_None;
+            clDevice.asmProgram = lycl::AP_None;
+            clDevice.workSize = global::defaultWorkSize;
+        
             cl_int status = clGetDeviceInfo(deviceIds[j], CL_DEVICE_TOPOLOGY_AMD, 
                                             sizeof(cl_device_topology_amd), &topology, nullptr);
             if(status == CL_SUCCESS)
             {
                 if (topology.raw.type == CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD)
-                {
-                    lycl::device clDevice;
-                    clDevice.clPlatformId = platformIds[i];
-                    clDevice.clId = deviceIds[j];
                     clDevice.pcieBusId = (int32_t)topology.pcie.bus;
-                    clDevice.platformIndex = (int32_t)i;
-                    clDevice.binaryFormat = lycl::BF_None;
-                    clDevice.asmProgram = lycl::AP_None;
-                    clDevice.workSize = global::defaultWorkSize;
-
-                    logicalDevices.push_back(clDevice);
-                }
             }
-            else // TODO: review...
-                std::cerr << "Error CL_DEVICE_TOPOLOGY_AMD!" << std::endl;
+            else
+            {
+                Log::print(Log::LT_Warning, "Failed to get CL_DEVICE_TOPOLOGY_AMD info. Platform index: %u", i);
+                clDevice.pcieBusId = 0;
+            }
+                
+            logicalDevices.push_back(clDevice);
         }
     }
 
@@ -532,11 +534,44 @@ int main(int argc, char** argv)
     //-----------------------------------------------------------------------------
     // generate a config file if it was requested
     bool generateConfig = false;
+    bool rawDeviceList = false;
     if (argc >= 2)
     {
         std::string command(argv[1]);
         if (command.compare("-g") == 0) 
             generateConfig = true;
+        if (command.compare("-gr") == 0)
+        {
+            rawDeviceList = true;
+            generateConfig = true;
+        }
+    }
+
+    // check for duplicate PCIeBusIds(rare case), only if raw device list is disabled
+    if (!rawDeviceList)
+    {
+        int32_t prevPlatformIndex = -1;
+        int32_t prevPcieBusId = -1;
+        for (size_t i = 0; i < logicalDevices.size(); ++i)
+        {
+            if((logicalDevices[i].pcieBusId == prevPcieBusId) &&
+               (logicalDevices[i].platformIndex == prevPlatformIndex))
+            {
+                if (generateConfig)
+                {
+                    Log::print(Log::LT_Warning, "Failed to group logical devices by PCIe slot ID. Duplicates Found!");
+                    Log::print(Log::LT_Warning, "Configuration file will be generated in \"raw device list\" format.");
+                    Log::print(Log::LT_Warning, "All possible device/platform combinations will be listed.");
+                }
+                rawDeviceList = true;
+                break;
+            }
+            else
+            {
+                prevPlatformIndex = logicalDevices[i].platformIndex;
+                prevPcieBusId = logicalDevices[i].pcieBusId;
+            }
+        }
     }
 
     if (generateConfig)
@@ -569,7 +604,7 @@ int main(int argc, char** argv)
                                "\n"
                                "<Connection Url = \"stratum+tcp://example.com:port\"\n"
                                "            Username = \"user\"\n"
-                               "            Password = \"123\">\n"
+                               "            Password = \"x\">\n"
                                "\n"
                                "#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#\n"
                                "# Device config:\n"
@@ -577,30 +612,132 @@ int main(int argc, char** argv)
                                "# Available platforms:\n"
                                "#\n");
 
-        int32_t prevPcieBusID = -1;
-        const std::string availablePlatformIndices("\n#    Available platforms indices: ");
-        std::string pcieBusIdString(std::to_string(prevPcieBusID));
-        std::string platformIndexString;
-        const std::string defaultWorkSizeString(std::to_string(global::defaultWorkSize));
-        std::string asmProgramName;
-        std::string deviceName;
-        std::string deviceBoardName;
-        // config texts
-        std::string deviceListText;
-        std::string deviceConfText;
-
-        for (size_t i = 0; i < logicalDevices.size(); ++i)
+        // generate platform list
+        std::string platformListText;
+        size_t infoSize = 0;
+        std::string infoString(infoSize, ' ');
+        for (size_t i = 0; i < (size_t)numPlatformIDs; ++i)
         {
-            if (logicalDevices[i].pcieBusId != prevPcieBusID)
-            {
-                prevPcieBusID = logicalDevices[i].pcieBusId;
+            infoString.clear();
+            clGetPlatformInfo(platformIds[i], CL_PLATFORM_VENDOR, 0, nullptr, &infoSize);
+            //infoString.resize(infoSize-1);
+            infoString.resize(infoSize);
+            clGetPlatformInfo(platformIds[i], CL_PLATFORM_VENDOR, infoSize, (void*)infoString.data(), nullptr);
+            infoString.pop_back();
 
-                // info
-                deviceListText += "\n#\n# ";
-                deviceListText += std::to_string(i+1);
-                deviceListText +=". ";
-                deviceListText += "Device: ";
+            platformListText += "# ";
+            platformListText += std::to_string(i+1);
+            platformListText += ". Platform name: ";
+            platformListText += infoString;
+            platformListText += "\n#    Index: ";
+            platformListText += std::to_string(i);
+            platformListText += "\n";
+        }
+
+        const std::string defaultWorkSizeString(std::to_string(global::defaultWorkSize));
+        std::string deviceConfText;
+        std::string deviceListText;
+        std::string deviceName;
+        std::string asmProgramName;
+        std::string deviceBoardName;
+        if(!rawDeviceList)
+        {
+            int32_t prevPcieBusID = -1;
+            const std::string availablePlatformIndices("\n#    Available platforms indices: ");
+            std::string pcieBusIdString;
+            std::string platformIndexString;
+            // config texts
+            size_t deviceIndex = 0;
+            for (size_t i = 0; i < logicalDevices.size(); ++i)
+            {
+                if (logicalDevices[i].pcieBusId != prevPcieBusID)
+                {
+                    prevPcieBusID = logicalDevices[i].pcieBusId;
+
+                    // info
+                    deviceListText += "\n#\n# ";
+                    deviceListText += std::to_string(deviceIndex+1);
+                    deviceListText +=". ";
+                    deviceListText += "Device: ";
                 
+                    // get device name
+                    size_t infoSize = 0;
+                    deviceName.clear();
+                    clGetDeviceInfo(logicalDevices[i].clId, CL_DEVICE_NAME, 0, NULL, &infoSize);
+                    //deviceName.resize(infoSize - 1);
+                    deviceName.resize(infoSize);
+                    clGetDeviceInfo(logicalDevices[i].clId, CL_DEVICE_NAME, infoSize, (void *)deviceName.data(), NULL);
+                    deviceName.pop_back();
+
+                    deviceListText += deviceName;
+                    // get device board name
+                    deviceBoardName.clear();
+                    clGetDeviceInfo(logicalDevices[i].clId, CL_DEVICE_BOARD_NAME_AMD, 0, NULL, &infoSize);
+                    //deviceBoardName.resize(infoSize - 1);
+                    deviceBoardName.resize(infoSize);
+                    clGetDeviceInfo(logicalDevices[i].clId, CL_DEVICE_BOARD_NAME_AMD, infoSize, (void *)deviceBoardName.data(), NULL);
+                    deviceBoardName.pop_back();
+                
+                    deviceListText += "\n#    Board name: ";
+                    deviceListText += deviceBoardName;                
+
+                    deviceListText += "\n#    PCIe bus id: ";
+                    pcieBusIdString = std::to_string(prevPcieBusID);
+                    deviceListText += pcieBusIdString;
+                    deviceListText += availablePlatformIndices;
+                    platformIndexString = std::to_string(logicalDevices[i].platformIndex);
+                    deviceListText += platformIndexString;
+                    // config
+                    deviceConfText += "<Device";
+                    deviceConfText += std::to_string(deviceIndex);
+                    ++deviceIndex;
+
+                    deviceConfText += " PCIeBusId = \"";
+                    deviceConfText += pcieBusIdString;
+                    deviceConfText += "\"";
+
+                    deviceConfText += " PlatformIndex = \"";
+                    deviceConfText += platformIndexString;
+                    deviceConfText += "\"";
+                    deviceConfText += " BinaryFormat = \"";
+    #ifdef _WIN32
+                        deviceConfText += "amdcl2";
+    #elif defined __linux__
+                    // force Vega GPUs to use ROCm by default.
+                    if (deviceName.find("gfx9") != std::string::npos)
+                        deviceConfText += "ROCm";
+                    else
+                        deviceConfText += "amdcl2"; // AMDGPU-Pro
+    #else
+                        deviceConfText += "none";
+    #endif
+                    deviceConfText += "\"";
+
+                    deviceConfText += " AsmProgram = \"";
+                    lycl::getAsmProgramNameFromDeviceName(deviceName, asmProgramName);
+                    deviceConfText += asmProgramName;
+                    deviceConfText += "\"";
+                
+                    deviceConfText += " WorkSize = \"";
+                    deviceConfText += defaultWorkSizeString;
+                    deviceConfText += "\">\n";
+                }
+                else
+                {
+                    // if it is the same device, then it means a different platform.
+                    deviceListText += ", " + std::to_string(logicalDevices[i].platformIndex); 
+                }
+            }
+        }
+        else // generate raw device list
+        {
+            for (size_t i = 0; i < logicalDevices.size(); ++i)
+            {
+                // get device info
+                deviceListText += "\n#\n# DeviceIndex: ";
+                deviceListText += std::to_string(i);
+
+                deviceListText += "\n#    Name: ";
                 // get device name
                 size_t infoSize = 0;
                 deviceName.clear();
@@ -612,32 +749,30 @@ int main(int argc, char** argv)
 
                 deviceListText += deviceName;
                 // get device board name
+                deviceBoardName.clear();
                 clGetDeviceInfo(logicalDevices[i].clId, CL_DEVICE_BOARD_NAME_AMD, 0, NULL, &infoSize);
                 //deviceBoardName.resize(infoSize - 1);
                 deviceBoardName.resize(infoSize);
                 clGetDeviceInfo(logicalDevices[i].clId, CL_DEVICE_BOARD_NAME_AMD, infoSize, (void *)deviceBoardName.data(), NULL);
                 deviceBoardName.pop_back();
-                
+            
                 deviceListText += "\n#    Board name: ";
                 deviceListText += deviceBoardName;                
 
-                deviceListText += "\n#    PCIe bus ID: ";
-                pcieBusIdString = std::to_string(prevPcieBusID);
-                deviceListText += pcieBusIdString;
-                deviceListText += availablePlatformIndices;
-                platformIndexString = std::to_string(logicalDevices[i].platformIndex);
-                deviceListText += platformIndexString;
-                // config
+                deviceListText += "\n#    PCIe bus id: ";
+                deviceListText += std::to_string(logicalDevices[i].pcieBusId);
+
+                deviceListText += "\n#    Platform index: ";
+                deviceListText += std::to_string(logicalDevices[i].platformIndex);
+
+                //  get device config
                 deviceConfText += "<Device";
                 deviceConfText += std::to_string(i);
 
-                deviceConfText += " PCIeBusId = \"";
-                deviceConfText += pcieBusIdString;
+                deviceConfText += " DeviceIndex = \"";
+                deviceConfText += std::to_string(i);
                 deviceConfText += "\"";
 
-                deviceConfText += " PlatformIndex = \"";
-                deviceConfText += platformIndexString;
-                deviceConfText += "\"";
                 deviceConfText += " BinaryFormat = \"";
 #ifdef _WIN32
                     deviceConfText += "amdcl2";
@@ -661,33 +796,6 @@ int main(int argc, char** argv)
                 deviceConfText += defaultWorkSizeString;
                 deviceConfText += "\">\n";
             }
-            else
-            {
-                // if it is the same device, then it means a different platform.
-                deviceListText += ", " + std::to_string(logicalDevices[i].platformIndex) + "\n"; 
-            }
-        }
-
-        // generate platform list
-        std::string platformListText;
-        size_t infoSize = 0;
-        std::string infoString(infoSize, ' ');
-        for (size_t i = 0; i < (size_t)numPlatformIDs; ++i)
-        {
-            infoString.clear();
-            clGetPlatformInfo(platformIds[i], CL_PLATFORM_VENDOR, 0, nullptr, &infoSize);
-            //infoString.resize(infoSize-1);
-            infoString.resize(infoSize);
-            clGetPlatformInfo(platformIds[i], CL_PLATFORM_VENDOR, infoSize, (void*)infoString.data(), nullptr);
-            infoString.pop_back();
-
-            platformListText += "# ";
-            platformListText += std::to_string(i+1);
-            platformListText += ". Platform name: ";
-            platformListText += infoString;
-            platformListText += "\n#    Index: ";
-            platformListText += std::to_string(i);
-            platformListText += "\n";
         }
 
         // final composition
@@ -732,97 +840,161 @@ int main(int argc, char** argv)
 
     //-------------------------------------
     // setup devices
-    size_t numDevicesConfigured = 0;
+    size_t deviceBlockIndex = 0;
     std::string dBlockName("Device");
     std::string binaryFormatName;
     std::string asmProgramName;
-    std::string deviceBlock = dBlockName + std::to_string(numDevicesConfigured);
+    std::string deviceBlock = dBlockName + std::to_string(deviceBlockIndex);
     
     std::vector<lycl::device> configuredDevices;
+
+    // check if configuration file is in "raw device list" format
+    csetting = cf.getSetting(deviceBlock.c_str(), "PCIeBusId");
+    if (!csetting)
+        rawDeviceList = true;
+
     // PCIeBusId is the only required setting, others are optional
-    while(csetting = cf.getSetting(deviceBlock.c_str(), "PCIeBusId"))
+    if (!rawDeviceList)
     {
-        int pcieBusId = csetting->AsInt;
-        int platformIndex = -1;
-        int workSize = 0;
-        lycl::EBinaryFormat binaryFormat = lycl::BF_None;
-        lycl::EAsmProgram asmProgram = lycl::AP_None; 
-
-        // get platform index
-        csetting = cf.getSetting(deviceBlock.c_str(), "PlatformIndex"); 
-        if (csetting) platformIndex = csetting->AsInt;
-
-        // get program binary format
-        csetting = cf.getSetting(deviceBlock.c_str(), "BinaryFormat"); 
-        if (csetting)
+        while (csetting = cf.getSetting(deviceBlock.c_str(), "PCIeBusId"))
         {
-            binaryFormatName = csetting->AsString;
-            binaryFormat = lycl::getBinaryFormatFromName(binaryFormatName);
-        }
+            int pcieBusId = csetting->AsInt;
+            int platformIndex = -1;
+            int workSize = 0;
+            lycl::EBinaryFormat binaryFormat = lycl::BF_None;
+            lycl::EAsmProgram asmProgram = lycl::AP_None; 
 
-        // get asm program name
-        csetting = cf.getSetting(deviceBlock.c_str(), "AsmProgram"); 
-        if (csetting)
-        {
-            asmProgramName = csetting->AsString;
-            asmProgram = lycl::getAsmProgramName(asmProgramName);
-        }
+            // get platform index
+            csetting = cf.getSetting(deviceBlock.c_str(), "PlatformIndex"); 
+            if (csetting) platformIndex = csetting->AsInt;
 
-        // get work size flag
-        csetting = cf.getSetting(deviceBlock.c_str(), "WorkSize"); 
-        if (csetting) workSize = csetting->AsInt;
-
-        // check if pcieBusID and platfromIndex are correct
-        ptrdiff_t foundPCIeBusId = -1;
-        ptrdiff_t foundPlatformIndex = -1;
-        for (size_t i = 0; i < logicalDevices.size(); ++i)
-        {
-            lycl::device& dv = logicalDevices[i];
-            if (dv.pcieBusId == pcieBusId) 
+            // get program binary format
+            csetting = cf.getSetting(deviceBlock.c_str(), "BinaryFormat"); 
+            if (csetting)
             {
-                foundPCIeBusId = i;
-                if (dv.platformIndex == platformIndex) 
+                binaryFormatName = csetting->AsString;
+                binaryFormat = lycl::getBinaryFormatFromName(binaryFormatName);
+            }
+
+            // get asm program name
+            csetting = cf.getSetting(deviceBlock.c_str(), "AsmProgram"); 
+            if (csetting)
+            {
+                asmProgramName = csetting->AsString;
+                asmProgram = lycl::getAsmProgramName(asmProgramName);
+            }
+
+            // get work size flag
+            csetting = cf.getSetting(deviceBlock.c_str(), "WorkSize"); 
+            if (csetting) workSize = csetting->AsInt;
+
+            // check if pcieBusID and platfromIndex are correct
+            ptrdiff_t foundPCIeBusId = -1;
+            ptrdiff_t foundPlatformIndex = -1;
+            for (size_t i = 0; i < logicalDevices.size(); ++i)
+            {
+                lycl::device& dv = logicalDevices[i];
+                if (dv.pcieBusId == pcieBusId) 
                 {
-                    foundPlatformIndex = i;
-                    break;
+                    foundPCIeBusId = i;
+                    if (dv.platformIndex == platformIndex) 
+                    {
+                        foundPlatformIndex = i;
+                        break;
+                    }
                 }
+                // check all logical devices in case they were sorted wrong...
             }
-            // check all logical devices in case they were sorted wrong...
-        }
 
-        // add a configured device if it was found
-        if (foundPCIeBusId >= 0)
+            // add a configured device if it was found
+            if (foundPCIeBusId >= 0)
+            {
+                if (foundPlatformIndex >= 0)
+                    configuredDevices.push_back(logicalDevices[foundPlatformIndex]);
+                else
+                {
+                    // unlike pcieBusId, platform index may not be static.
+                    Log::print(Log::LT_Warning, "\"PlatformIndex\" parameter is not set or incorrect inside \"%s\" section. Using default(%d).",
+                               deviceBlock.c_str(), logicalDevices[foundPCIeBusId].platformIndex);
+                    configuredDevices.push_back(logicalDevices[foundPCIeBusId]);
+                }
+
+                // check if workSize is set correct.
+                // TODO: review for other vendors/drivers
+                if ( (workSize > 0) && ((workSize % 256) == 0) )
+                    configuredDevices[configuredDevices.size() - 1].workSize = workSize;
+                else
+                {
+                    Log::print(Log::LT_Warning, "\"WorkSize\" parameter is not set or incorrect inside \"%s\" section. It must be multiple of 256. Using default(%d).",
+                               deviceBlock.c_str(), logicalDevices[configuredDevices.size()- 1].workSize); 
+                }
+
+                // AsmProgram will be detected on context init
+                configuredDevices[configuredDevices.size() - 1].binaryFormat = binaryFormat;
+                configuredDevices[configuredDevices.size() - 1].asmProgram = asmProgram;
+            }
+            else
+                Log::print(Log::LT_Warning, "\"PCIeBusId\" is invalid inside \"%s\" section. Skipping device...", deviceBlock.c_str());
+            
+
+            ++deviceBlockIndex;
+            deviceBlock = dBlockName + std::to_string(deviceBlockIndex);
+        }
+    }
+    else
+    {
+        while(csetting = cf.getSetting(deviceBlock.c_str(), "DeviceIndex"))
         {
-            if (foundPlatformIndex >= 0)
-                configuredDevices.push_back(logicalDevices[foundPlatformIndex]);
-            else
+            int deviceIndex = csetting->AsInt;
+            int workSize = 0;
+            lycl::EBinaryFormat binaryFormat = lycl::BF_None;
+            lycl::EAsmProgram asmProgram = lycl::AP_None; 
+
+            // get program binary format
+            csetting = cf.getSetting(deviceBlock.c_str(), "BinaryFormat"); 
+            if (csetting)
             {
-                // unlike pcieBusId, platform index may not be static.
-                Log::print(Log::LT_Warning, "\"PlatformIndex\" parameter is not set or incorrect inside \"%s\" section. Using default(%d).",
-                           deviceBlock.c_str(), logicalDevices[foundPCIeBusId].platformIndex);
-                configuredDevices.push_back(logicalDevices[foundPCIeBusId]);
+                binaryFormatName = csetting->AsString;
+                binaryFormat = lycl::getBinaryFormatFromName(binaryFormatName);
             }
 
-            // check if workSize is set correct.
-            // TODO: review for other vendors/drivers
-            if ( (workSize > 0) && ((workSize % 256) == 0) )
-                configuredDevices[configuredDevices.size() - 1].workSize = workSize;
-            else
+            // get asm program name
+            csetting = cf.getSetting(deviceBlock.c_str(), "AsmProgram"); 
+            if (csetting)
             {
-                Log::print(Log::LT_Warning, "\"WorkSize\" parameter is not set or incorrect inside \"%s\" section. It must be multiple of 256. Using default(%d).",
-                           deviceBlock.c_str(), logicalDevices[configuredDevices.size()- 1].workSize); 
+                asmProgramName = csetting->AsString;
+                asmProgram = lycl::getAsmProgramName(asmProgramName);
             }
 
-            // AsmProgram will be detected on context init
-            configuredDevices[configuredDevices.size()- 1].binaryFormat = binaryFormat;
-            configuredDevices[configuredDevices.size()- 1].asmProgram = asmProgram;
+            // get work size flag
+            csetting = cf.getSetting(deviceBlock.c_str(), "WorkSize"); 
+            if (csetting) workSize = csetting->AsInt;
+
+            // check if pcieBusID and platfromIndex are correct
+            if ((deviceIndex < logicalDevices.size()) && (deviceIndex >= 0))
+            {
+                configuredDevices.push_back(logicalDevices[(size_t)deviceIndex]);
+
+                // check if workSize is set correct.
+                // TODO: review for other vendors/drivers
+                if ( (workSize > 0) && ((workSize % 256) == 0) )
+                    configuredDevices[configuredDevices.size() - 1].workSize = workSize;
+                else
+                {
+                    Log::print(Log::LT_Warning, "\"WorkSize\" parameter is not set or incorrect inside \"%s\" section. It must be multiple of 256. Using default(%d).",
+                               deviceBlock.c_str(), logicalDevices[configuredDevices.size()- 1].workSize); 
+                }
+
+                // AsmProgram will be detected on context init
+                configuredDevices[configuredDevices.size()- 1].binaryFormat = binaryFormat;
+                configuredDevices[configuredDevices.size()- 1].asmProgram = asmProgram;
+            }
+            else
+                Log::print(Log::LT_Warning, "\"DeviceIndex\" is invalid inside \"%s\" section. Skipping device...", deviceBlock.c_str());
+
+            ++deviceBlockIndex;
+            deviceBlock = dBlockName + std::to_string(deviceBlockIndex);
         }
-        else
-            Log::print(Log::LT_Warning, "\"PCIeBusId\" is incorrect inside \"%s\" section. Skipping device...", deviceBlock.c_str());
-        
-
-        ++numDevicesConfigured;
-        deviceBlock = dBlockName + std::to_string(numDevicesConfigured);
     }
 
 //-----------------------------------------------------------------------------
@@ -830,14 +1002,19 @@ int main(int argc, char** argv)
 
     // 1 device per thread
     global::numWorkerThreads = configuredDevices.size();
-     
+    if (!global::numWorkerThreads)
+    {
+        Log::print(Log::LT_Warning, "Found 0 configured devices. Exiting...");
+        return 0;
+    }
+
     pthread_mutex_init(&Log::applog_lock, NULL);
     pthread_mutex_init(&stats_lock, NULL);
     pthread_mutex_init(&g_work_lock, NULL);
     pthread_mutex_init(&stratum.sock_lock, NULL);
     pthread_mutex_init(&stratum.work_lock, NULL);
 
-    long flags = strncmp(global::connectionInfo.rpc_url.c_str(), "https:", 6) ? (CURL_GLOBAL_ALL & ~CURL_GLOBAL_SSL) : CURL_GLOBAL_ALL; 
+    long flags = strncmp(global::connectionInfo.rpc_url.c_str(), "https:", 6) ? (CURL_GLOBAL_ALL & ~CURL_GLOBAL_SSL) : CURL_GLOBAL_ALL;
     if (curl_global_init(flags))
     {
         Log::print(Log::LT_Error, "CURL initialization failed");
@@ -845,7 +1022,7 @@ int main(int argc, char** argv)
     }
 
 #ifndef _WIN32
-    signal(SIGINT, signal_handler); 
+    signal(SIGINT, signal_handler);
 #else
     SetConsoleCtrlHandler((PHANDLER_ROUTINE)ConsoleHandler, TRUE);
 #endif
@@ -897,7 +1074,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    tq_push(gthr_info[stratum_thr_id].q, strdup(global::connectionInfo.rpc_url.c_str())); 
+    tq_push(gthr_info[stratum_thr_id].q, strdup(global::connectionInfo.rpc_url.c_str()));
 
     //-----------------------------------------------------------------------------
     // create worker threads
@@ -916,7 +1093,7 @@ int main(int argc, char** argv)
         }
     }
 
-    Log::print(Log::LT_Info, "%d worker threads started, using lyra2REv2 algorithm.", global::numWorkerThreads); 
+    Log::print(Log::LT_Info, "%d worker threads started, using lyra2REv2 algorithm.", global::numWorkerThreads);
 
 //-----------------------------------------------------------------------------
 
@@ -924,4 +1101,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-

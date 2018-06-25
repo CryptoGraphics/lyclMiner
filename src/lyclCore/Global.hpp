@@ -15,7 +15,7 @@
 // Define to the full name of this package.
 #define PACKAGE_NAME "lyclMiner"
 // Define to the version of this package.
-#define PACKAGE_VERSION "0.1.4"
+#define PACKAGE_VERSION "0.1.5"
 #define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION
 
 struct ConnectionInfo
