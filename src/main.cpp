@@ -822,7 +822,6 @@ int main(int argc, char** argv)
 
     //-------------------------------------
     // setup a pool connection.
-    memset(&global::connectionInfo, 0, sizeof(ConnectionInfo));
     // get url
     csetting = cf.getSetting("Connection", "Url");
     if (csetting) global::connectionInfo.rpc_url = csetting->AsString;
