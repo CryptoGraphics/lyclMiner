@@ -11,6 +11,23 @@
 #define CLUtils_INCLUDE_ONCE
 
 #include <CL/opencl.h>
+
+//-----------------------------------------------------------------------------
+// cl_amd_device_attribute_query
+#ifndef CL_DEVICE_TOPOLOGY_AMD
+
+#define CL_DEVICE_TOPOLOGY_AMD                      0x4037
+#define CL_DEVICE_BOARD_NAME_AMD                    0x4038
+typedef union
+{
+    struct { cl_uint type; cl_uint data[5]; } raw;
+    struct { cl_uint type; cl_char unused[17]; cl_char bus; cl_char device; cl_char function; } pcie;
+} cl_device_topology_amd;
+#define CL_DEVICE_TOPOLOGY_TYPE_PCIE_AMD            1
+
+#endif
+//-----------------------------------------------------------------------------
+
 #include <iostream> // cerr
 #include <fstream> // ifstream
 #include <sstream> // ostringstream
@@ -207,13 +224,20 @@ namespace lycl
         fseek(fp, 0, SEEK_SET);
 
         *output = (unsigned char *)malloc(*size);
-        if (!*output)
+        if (!(*output))
         {
             fclose(fp);
             return -1;
         }
 
         size_t readRes = fread(*output, 1, *size, fp);
+        if (readRes != (*size))
+        {
+            free(*output);
+            fclose(fp);
+            return -1;
+        }
+
         fclose(fp);
 
         return 0;

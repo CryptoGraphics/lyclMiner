@@ -32,9 +32,7 @@ void buildStratumRequest(char* req, work* work_info)
 //-----------------------------------------------------------------------------
 bool submit_upstream_work( CURL *curl, work *work_info )
 {
-    json_t *val, *res;
     char req[JSON_BUF_LEN];
-    int i;
 
     // pass if the previous hash is not the current previous hash
     if ( memcmp( &work_info->data[1], &global::g_work.data[1], 32 ) )

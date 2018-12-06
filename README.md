@@ -1,7 +1,7 @@
 lyclMiner
 ===============
 
-lyclMiner is a high performance OpenCL Lyra2REv2 miner for AMD GCN GPUs.
+lyclMiner is a high performance OpenCL Lyra2REv2/v3 miner for AMD GCN GPUs.
 
 **Developer:** CryptoGraphics ( CrGraphics@protonmail.com )
 
@@ -43,7 +43,7 @@ Example: `lyclMiner your_configuration_file`
      - By default miner looks for `lyclMiner.conf` in the same directory as lyclMiner executable.
 
 2. **Configuring a miner.**
-Open `lyclMiner.conf` using any text editor and edit `"Url"`, `"Username"` and `"Password"` fields inside a `"Connection"` block.
+Open `lyclMiner.conf` using any text editor and edit `"Url"`, `"Username"`, `"Password"` and `"Algorithm"` fields inside a `"Connection"` block.
 Additional notes:  
    - It is recommended to adjust `WorkSize` parameter for each `Device` to get better performance.
 
@@ -52,9 +52,13 @@ Additional notes:
 
 ## There is more
 
-### Comments inside a config file
+### Pool connection setup:
+- **Connection password**  
+  - If the pool doesn't require this parameter, leave it as `x`  
 
-- Comments can be in C format, e.g. `/* some stuff */`, with a `//` at the start of the line, or in shell format (`#`). 
+- **Algorithm parameters(case insensitive)**  
+  - `Lyra2REv2`  
+  - `Lyra2REv3`  
 
 ### Selecting specific devices
 
@@ -132,6 +136,7 @@ Specifies a binary format for asm programs. Asm programs are faster than high-le
   - `none` (Disable asm programs. `AsmProgram` option will be ignored.)  
 
 - **AsmProgram**  
+  - `gfx6` (GCN 1st generation, Windows and Lyra2REv3 only)  
   - `gfx7` (GCN 2nd generation, not available on ROCm)  
   - `gfx8` (GCN 3rd and 4th generations)  
   - `gfx9` (GCN 5nd generation)  
@@ -165,6 +170,11 @@ Specifies a Device/Platform combination from the list.
 `lyclMiner -gr lyclMiner.conf`
 
 
+### Comments inside a config file
+
+- Comments can be in C format, e.g. `/* some stuff */`, with a `//` at the start of the line, or in shell format (`#`).
+
+
 ## Building lyclMiner
 
 Make sure that OpenCL drivers are installed. See [Supported platforms](#supported-platforms).
@@ -175,7 +185,6 @@ GCC (Linux) / MinGW-w64 (Windows)
 
 ### Dependencies
 - OpenCL
-- OpenSSL
 - libcurl
 - jansson
 
@@ -192,7 +201,7 @@ e.g(on Ubuntu 16.04 LTS): `sudo apt-get install libcurl4-openssl-dev libssl-dev 
     - Threads: posix
     - Exception: seh
  2. Add `MinGW installation/mingw-w64/bin` to your "PATH"
- 3. Download or compile [libcurl](https://curl.haxx.se/download.html), [jansson](https://github.com/akheron/jansson), [OpenSSL](https://slproweb.com/products/Win32OpenSSL.html)
+ 3. Download or compile [libcurl](https://curl.haxx.se/download.html), [jansson](https://github.com/akheron/jansson)
  6. Install [AMD OpenCL app SDK](http://amd-dev.wpengine.netdna-cdn.com/app-sdk/installers/APPSDKInstaller/3.0.130.135-GA/full/AMD-APP-SDKInstaller-v3.0.130.135-GA-windows-F-x64.exe)
     or use Kronos OpenCL headers and ICD.
  7. Edit `setupJansson()`, `setupCurl()`, `setupOpenCL()` functions inside a `premake5.lua` file. Specify `includedirs` and `libdirs` for all dependencies.

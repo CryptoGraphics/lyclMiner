@@ -12,32 +12,14 @@
 
 #include <vector>
 #include <string>
-#include <lyclCore/CLUtils.hpp>
 #include <cstring> // memset
 #include <chrono>
 
+#include <lyclCore/CLUtils.hpp>
+#include <lyclApplets/AppCommon.hpp>
+
 namespace lycl
 {
-    struct KernelData
-    {
-        uint32_t uH0;
-        uint32_t uH1;
-        uint32_t uH2;
-        uint32_t uH3;
-        uint32_t uH4;
-        uint32_t uH5;
-        uint32_t uH6;
-        uint32_t uH7;
-
-        uint32_t in16;
-        uint32_t in17;
-        uint32_t in18;
-
-        uint32_t htArg;
-    };
-
-    struct lyraHash { uint32_t h[8]; };
-
     //-----------------------------------------------------------------------------
     // AppLyra2REv2 class declaration.
     //-----------------------------------------------------------------------------
@@ -56,13 +38,13 @@ namespace lycl
         //! must be called at least once, before (onRun())
         inline void setKernelData(const KernelData& kernel_data);
         //! returns all hashes. Very slow. Used for validation
-        inline void getHashes(std::vector<lyraHash>& lyra_hashes);
+        inline void getHashes(std::vector<uint32x8>& lyra_hashes);
         //! get result based on Htarg test.
         inline void getHtArgTestResultAndSize(uint32_t& out_nonce, uint32_t& out_dbgCount);
         //! get Htarg test result buffer content
         inline void getHtArgTestResults(std::vector<uint32_t>& out_htargs, size_t num_elements, size_t offset_elem);
         //! returns hash at specific index, useful for host side validation.
-        inline void getLatestHashResultForIndex(uint32_t index, lyraHash& out_hash);
+        inline void getLatestHashResultForIndex(uint32_t index, uint32x8& out_hash);
         //! clear hTarg result buffer.
         inline void clearResult(size_t num_elements);
 
@@ -140,9 +122,12 @@ namespace lycl
 
         //-------------------------------------
         // Create an OpenCL command queue
+#ifndef CL_API_SUFFIX__VERSION_2_0
         //clCreateCommandQueue() // deprecated in 2.0
-        //m_clCommandQueue = clCreateCommandQueue(m_clContext, in_device.clId, 0, &errorCode);
+        m_clCommandQueue = clCreateCommandQueue(m_clContext, in_device.clId, 0, &errorCode);  
+#else  
         m_clCommandQueue = clCreateCommandQueueWithProperties(m_clContext, in_device.clId, nullptr, &errorCode);
+#endif
         if (errorCode != CL_SUCCESS)
         {
             std::cerr << "Failed to create a command queue. Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
@@ -151,13 +136,13 @@ namespace lycl
         
         //-------------------------------------
         // Create buffers
-        m_clMemHashStorage = clCreateBuffer(m_clContext, CL_MEM_READ_WRITE, sizeof(lyraHash)*m_maxWorkSize, nullptr, &errorCode);
+        m_clMemHashStorage = clCreateBuffer(m_clContext, CL_MEM_READ_WRITE, sizeof(uint32x8)*m_maxWorkSize, nullptr, &errorCode);
         if (errorCode != CL_SUCCESS)
         {
             std::cerr << "Failed to create a hash storage buffer. Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
             return false;
         }
-        m_clMemLyraStates = clCreateBuffer(m_clContext, CL_MEM_READ_WRITE, sizeof(lyraHash)*m_maxWorkSize*4, nullptr, &errorCode);
+        m_clMemLyraStates = clCreateBuffer(m_clContext, CL_MEM_READ_WRITE, sizeof(uint32x8)*m_maxWorkSize*4, nullptr, &errorCode);
         if (errorCode != CL_SUCCESS)
         {
             std::cerr << "Failed to create a lyra state buffer. Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
@@ -277,11 +262,11 @@ namespace lycl
             std::string asmProgramFileName;
 
             if (in_device.binaryFormat == BF_AMDCL2)
-                asmProgramFileName = "kernels/lyra441p2/lyra441p2_gfx7_amdcl2.bin";
+                asmProgramFileName = "kernels/lyra441p2/rev2/lyra441p2_gfx7_amdcl2.bin";
 
             m_clProgramLyra441p2 = cluCreateProgramWithBinaryFromFile(m_clContext, in_device.clId, asmProgramFileName);
             if (m_clProgramLyra441p2 == NULL)
-                std::cerr << "Failed to create ASM program(lyra441p2). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+                std::cerr << "Failed to create ASM program(lyra441p2(rev2)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
             else
                 asmSuccess = true;
         }
@@ -289,13 +274,13 @@ namespace lycl
         {
             std::string asmProgramFileName;
             if (in_device.binaryFormat == BF_AMDCL2)
-                asmProgramFileName = "kernels/lyra441p2/lyra441p2_gfx8_amdcl2.bin";
+                asmProgramFileName = "kernels/lyra441p2/rev2/lyra441p2_gfx8_amdcl2.bin";
             else if (in_device.binaryFormat == BF_ROCm)
-                asmProgramFileName = "kernels/lyra441p2/lyra441p2_gfx8_rocm.bin";
+                asmProgramFileName = "kernels/lyra441p2/rev2/lyra441p2_gfx8_rocm.bin";
 
             m_clProgramLyra441p2 = cluCreateProgramWithBinaryFromFile(m_clContext, in_device.clId, asmProgramFileName);
             if (m_clProgramLyra441p2 == NULL)
-                std::cerr << "Failed to create ASM program(lyra441p2). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+                std::cerr << "Failed to create ASM program(lyra441p2(rev2)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
             else
                 asmSuccess = true;
         }
@@ -304,13 +289,13 @@ namespace lycl
             std::string asmProgramFileName;
 
             if (in_device.binaryFormat == BF_AMDCL2)
-                asmProgramFileName = "kernels/lyra441p2/lyra441p2_gfx9_amdcl2.bin";
+                asmProgramFileName = "kernels/lyra441p2/rev2/lyra441p2_gfx9_amdcl2.bin";
             if (in_device.binaryFormat == BF_ROCm)
-                asmProgramFileName = "kernels/lyra441p2/lyra441p2_gfx9_rocm.bin";
+                asmProgramFileName = "kernels/lyra441p2/rev2/lyra441p2_gfx9_rocm.bin";
 
             m_clProgramLyra441p2 = cluCreateProgramWithBinaryFromFile(m_clContext, in_device.clId, asmProgramFileName);
             if (m_clProgramLyra441p2 == NULL)
-                std::cerr << "Failed to create ASM program(lyra441p2). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+                std::cerr << "Failed to create ASM program(lyra441p2(rev2)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
             else
                 asmSuccess = true;
         }
@@ -322,10 +307,10 @@ namespace lycl
         if (!asmSuccess)
         {
             // Fallback to the OpenCL kernel.
-            m_clProgramLyra441p2 = cluCreateProgramFromFile(m_clContext, in_device.clId, "kernels/lyra441p2/lyra441p2.cl");
+            m_clProgramLyra441p2 = cluCreateProgramFromFile(m_clContext, in_device.clId, "kernels/rev2/lyra441p2/lyra441p2.cl");
             if (m_clProgramLyra441p2 == NULL)
             {
-                std::cerr << "Failed to create CL program from source(lyra441p2). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+                std::cerr << "Failed to create CL program from source(lyra441p2(rev2)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
                 return false;
             }
         }
@@ -333,13 +318,13 @@ namespace lycl
         m_clKernelLyra441p2 = clCreateKernel(m_clProgramLyra441p2, "lyra441p2", &errorCode);
         if (errorCode != CL_SUCCESS)
         {
-            std::cerr << "Failed to create kernel(lyra441p2). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+            std::cerr << "Failed to create kernel(lyra441p2(rev2)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
             return false;
         }
         errorCode = clSetKernelArg(m_clKernelLyra441p2, 0, sizeof(cl_mem), &m_clMemLyraStates);
         if (errorCode != CL_SUCCESS)
         {
-            std::cerr << "Error setting kernel argument(0) inside kernel(lyra441p2). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+            std::cerr << "Error setting kernel argument(0) inside kernel(lyra441p2(rev2)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
             return false;
         }
 
@@ -450,49 +435,48 @@ namespace lycl
             num_hashes = m_maxWorkSize;
         }
 
-        cl_int errorCode = CL_SUCCESS;
         clSetKernelArg(m_clKernelBlake32, 12, sizeof(uint32_t), &first_nonce);
 
-        const size_t globalWorkSize = num_hashes;
+        const size_t globalWorkSize1x = num_hashes;
         const size_t globalWorkSize4x = num_hashes*4;
-        const size_t localWorkSize = 256;
-        const size_t lyraLocalWorkSize = 64;
+        const size_t localWorkSize256 = 256;
+        const size_t localWorkSize64  = 64;
         // blake32
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelBlake32, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // keccak-f1600
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelKeccakF1600, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // cubeHash256
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelCubeHash256, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // lyra441p1
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelLyra441p1, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // lyra441p2
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelLyra441p2, 1, nullptr,
-                               &globalWorkSize4x, &lyraLocalWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize4x, &localWorkSize64, 0, nullptr, nullptr);
         // lyra441p3
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelLyra441p3, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // skein
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelSkein, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // cubeHash256
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelCubeHash256, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
         // bmwHtarg
         clEnqueueNDRangeKernel(m_clCommandQueue, m_clKernelBmwHtarg, 1, nullptr,
-                               &globalWorkSize, &localWorkSize, 0, nullptr, nullptr);
+                               &globalWorkSize1x, &localWorkSize256, 0, nullptr, nullptr);
 
         clFinish(m_clCommandQueue);
     }
     //-----------------------------------------------------------------------------
-    inline void AppLyra2REv2::getHashes(std::vector<lyraHash>& lyra_hashes)
+    inline void AppLyra2REv2::getHashes(std::vector<uint32x8>& lyra_hashes)
     {
         if(lyra_hashes.size() < m_maxWorkSize)
             lyra_hashes.resize(m_maxWorkSize);    
-        clEnqueueReadBuffer(m_clCommandQueue, m_clMemHashStorage, CL_TRUE, 0, m_maxWorkSize * sizeof(lyraHash), lyra_hashes.data(), 0, nullptr, nullptr);
+        clEnqueueReadBuffer(m_clCommandQueue, m_clMemHashStorage, CL_TRUE, 0, m_maxWorkSize * sizeof(uint32x8), lyra_hashes.data(), 0, nullptr, nullptr);
     }
     //-----------------------------------------------------------------------------
     //inline void AppLyra2REv2::clearResult()
@@ -546,9 +530,9 @@ namespace lycl
         clEnqueueReadBuffer(m_clCommandQueue, m_clMemHtArgResult, CL_TRUE, offset_elem * sizeof(uint32_t), num_elements*sizeof(uint32_t), out_htargs.data(), 0, nullptr, nullptr);
     }
     //-----------------------------------------------------------------------------
-    inline void AppLyra2REv2::getLatestHashResultForIndex(uint32_t index, lyraHash& out_hash)
+    inline void AppLyra2REv2::getLatestHashResultForIndex(uint32_t index, uint32x8& out_hash)
     {
-        clEnqueueReadBuffer(m_clCommandQueue, m_clMemHashStorage, CL_TRUE, (size_t)sizeof(lyraHash)*index, sizeof(lyraHash), &out_hash, 0, nullptr, nullptr);
+        clEnqueueReadBuffer(m_clCommandQueue, m_clMemHashStorage, CL_TRUE, (size_t)sizeof(uint32x8)*index, sizeof(uint32x8), &out_hash, 0, nullptr, nullptr);
     }
     //-----------------------------------------------------------------------------
     inline void AppLyra2REv2::onDestroy()
@@ -569,7 +553,7 @@ namespace lycl
         // lyra441p3
         clReleaseKernel(m_clKernelLyra441p3);
         clReleaseProgram(m_clProgramLyra441p3);
-        // lyra441p2
+        // lyra441p2(rev2)
         clReleaseKernel(m_clKernelLyra441p2);
         clReleaseProgram(m_clProgramLyra441p2);
         // lyra441p1

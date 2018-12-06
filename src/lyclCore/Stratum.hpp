@@ -60,7 +60,7 @@ struct stratum_ctx
     struct work work;
     pthread_mutex_t work_lock;
 
-    int block_height;
+    uint32_t block_height;
 };
 
 extern stratum_ctx stratum;
@@ -99,7 +99,6 @@ inline bool stratum_handle_response( char *buf )
         Log::print(Log::LT_Info, "JSON decode failed(%d): %s", err.line, err.text);
         goto out;
     }
-    json_object_get( val, "result" );
     id_val = json_object_get( val, "id" );
 
     if ( !id_val || json_is_null(id_val) )
@@ -356,8 +355,8 @@ static bool stratum_benchdata(json_t *result, json_t *params, int thr_id)
     char compiler[32] = { 0 };
     char arch[16] = { 0 };
     char os[8];
-    char *p;
-    double cpufreq = 0;
+    //char *p;
+    //double cpufreq = 0;
     json_t *val;
 
     if (!global::opt_stratumStats)

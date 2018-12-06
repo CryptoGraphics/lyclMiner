@@ -143,7 +143,7 @@ static void *stratum_thread(void *userdata )
             {
                 free( stratum.url );
                 stratum.url = strdup(global::connectionInfo.rpc_url.c_str()); 
-                Log::print(Log::LT_Blue, "Connection changed to %s", global::connectionInfo.short_url);
+                Log::print(Log::LT_Blue, "Connection changed to %s", global::connectionInfo.short_url.c_str()); 
             }
             else
                 Log::print(Log::LT_Debug, "Stratum connection reset");
@@ -187,15 +187,15 @@ static void *stratum_thread(void *userdata )
                 {
                     last_block_height = stratum.block_height;
                     if (global::net_diff > 0.)
-                        Log::print(Log::LT_Blue, "lyra2REv2 block %d, diff %.3f", stratum.block_height, global::net_diff);
+                        Log::print(Log::LT_Blue, "block %d, diff %.3f", stratum.block_height, global::net_diff);
                     else
-                        Log::print(Log::LT_Blue, "%s lyra2REv2 block %d", global::connectionInfo.short_url, stratum.block_height);
+                        Log::print(Log::LT_Blue, "%s block %d", global::connectionInfo.short_url.c_str(), stratum.block_height); 
                 }
                 restart_threads();
             }
             else if (global::opt_debug)
             {
-                Log::print(Log::LT_Blue, "%s asks job %d for block %d", global::connectionInfo.short_url,
+                Log::print(Log::LT_Blue, "%s asks job %d for block %d", global::connectionInfo.short_url.c_str(),
                            strtoul(stratum.job.job_id, NULL, 16), stratum.block_height);
             }
         }  // stratum.job.job_id

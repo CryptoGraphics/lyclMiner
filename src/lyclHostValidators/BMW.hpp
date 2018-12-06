@@ -10,7 +10,7 @@
 #ifndef BMW_INCLUDE_ONCE
 #define BMW_INCLUDE_ONCE
 
-#include <lyclApplets/AppLyra2REv2.hpp>
+#include <lyclApplets/AppCommon.hpp>
 
 namespace lycl
 {
@@ -133,7 +133,7 @@ namespace lycl
         H[15] = SPH_ROTL32(H[3], 16) + (XH32 ^ Q[31] ^ M32[15]) + (shr(XL32, 2) ^ Q[22] ^ Q[15]);
     }
     //-----------------------------------------------------------------------------
-    void bmwHash(const lyraHash& hash_input, lyraHash& hash_output)
+    void bmwHash(const uint32x8& hash_input, uint32x8& hash_output)
     {
         uint32_t dh[16] = {
             0x40414243U, 0x44454647U,

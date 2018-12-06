@@ -52,7 +52,7 @@ inline static int thread_create(struct thr_info *thr, void *(*func) (void *))
     return err;
 }
 
-static thread_q *tq_new()
+inline static thread_q *tq_new()
 {
     thread_q *tq;
 
@@ -67,7 +67,7 @@ static thread_q *tq_new()
     return tq;
 }
 
-static bool tq_push(struct thread_q *tq, void *data)
+inline static bool tq_push(struct thread_q *tq, void *data)
 {
     struct tq_ent *ent;
     bool rc = true;
@@ -94,7 +94,7 @@ static bool tq_push(struct thread_q *tq, void *data)
     return rc;
 }
 
-static void* tq_pop(struct thread_q *tq, const struct timespec *abstime)
+inline static void* tq_pop(struct thread_q *tq, const struct timespec *abstime)
 {
     struct tq_ent *ent;
     void *rval = NULL;
@@ -126,7 +126,7 @@ out:
     return rval;
 }
 
-static void tq_freezethaw(struct thread_q *tq, bool frozen)
+inline static void tq_freezethaw(struct thread_q *tq, bool frozen)
 {
     pthread_mutex_lock(&tq->mutex);
 
@@ -136,7 +136,7 @@ static void tq_freezethaw(struct thread_q *tq, bool frozen)
     pthread_mutex_unlock(&tq->mutex);
 }
 
-static void tq_freeze(struct thread_q *tq)
+inline static void tq_freeze(struct thread_q *tq)
 {
     tq_freezethaw(tq, true);
 }

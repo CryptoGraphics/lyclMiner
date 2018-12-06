@@ -15,8 +15,19 @@
 // Define to the full name of this package.
 #define PACKAGE_NAME "lyclMiner"
 // Define to the version of this package.
-#define PACKAGE_VERSION "0.1.5"
+#define PACKAGE_VERSION "0.2.0"
 #define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION
+
+namespace lycl
+{
+    typedef enum
+    {
+        A_Lyra2REv2,
+        A_Lyra2REv3,
+
+        A_None
+    } EAlgorithm;
+}
 
 struct ConnectionInfo
 {
@@ -25,6 +36,7 @@ struct ConnectionInfo
     std::string short_url;
     std::string rpc_url;
     std::string rpc_userpass;
+    lycl::EAlgorithm algo;
 };
 
 //! WorkInfo
@@ -62,7 +74,7 @@ namespace global
     //! Stratum reconnect
     const bool opt_reconnect = true;
     //! Default num hashes per run
-    const int32_t defaultWorkSize = 1048576;
+    static const int32_t defaultWorkSize = 1048576;
     //! network difficulty
     extern double net_diff;
     //! enable terminal colors for logging
