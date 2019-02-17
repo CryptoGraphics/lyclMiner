@@ -15,7 +15,7 @@
 // Define to the full name of this package.
 #define PACKAGE_NAME "lyclMiner"
 // Define to the version of this package.
-#define PACKAGE_VERSION "0.2.0"
+#define PACKAGE_VERSION "0.2.1"
 #define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION
 
 namespace lycl
