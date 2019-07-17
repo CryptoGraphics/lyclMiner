@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 CryptoGraphics ( CrGraphics@protonmail.com )
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,7 +15,7 @@
 // Define to the full name of this package.
 #define PACKAGE_NAME "lyclMiner"
 // Define to the version of this package.
-#define PACKAGE_VERSION "0.2.1"
+#define PACKAGE_VERSION "0.2.2"
 #define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION
 
 namespace lycl

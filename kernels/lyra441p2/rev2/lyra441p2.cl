@@ -1,5 +1,11 @@
-// lyra441p2 kernel.
-// Author: CryptoGraphics ( CrGraphics@protonmail.com )
+/*
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version. See LICENSE for more details.
+ */
 
 #define rotr64(x, n) ((n) < 32 ? (amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n)) | ((ulong)amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n)) << 32)) : (amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n) - 32) | ((ulong)amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n) - 32) << 32)))
 
@@ -584,5 +590,5 @@ __kernel void lyra441p2(__global uint* lyraStates)
     lyraState->h2[(lIdx & 3)+8] = state[2];
     lyraState->h2[(lIdx & 3)+12] = state[3];
     
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }

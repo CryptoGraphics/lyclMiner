@@ -1,5 +1,11 @@
-// blake32 kernel.
-// Author: CryptoGraphics ( CrGraphics@protonmail.com )
+/*
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version. See LICENSE for more details.
+ */
 
 #define rotr32(a, w, c) \
 { \
@@ -240,5 +246,5 @@ __kernel void blake32(__global uint* hashes,
     hash->h4[0] = (uint4)(h[0], h[1], h[2], h[3]);
     hash->h4[1] = (uint4)(h[4], h[5], h[6], h[7]);
     
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }

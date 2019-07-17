@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 CryptoGraphics ( CrGraphics@protonmail.com )
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -277,6 +277,21 @@ namespace lycl
                 asmProgramFileName = "kernels/lyra441p2/rev3/lyra441p2_gfx9_amdcl2.bin";
             if (in_device.binaryFormat == BF_ROCm)
                 asmProgramFileName = "kernels/lyra441p2/rev3/lyra441p2_gfx9_rocm.bin";
+
+            m_clProgramLyra441p2 = cluCreateProgramWithBinaryFromFile(m_clContext, in_device.clId, asmProgramFileName);
+            if (m_clProgramLyra441p2 == NULL)
+                std::cerr << "Failed to create ASM program(lyra441p2(rev3)). Device(" << deviceName << ") Platform index(" << in_device.platformIndex << ")" << std::endl;
+            else
+                asmSuccess = true;
+        }
+        else if (in_device.asmProgram == AP_GFX906)
+        {
+            std::string asmProgramFileName;
+
+            if (in_device.binaryFormat == BF_AMDCL2)
+                std::cerr << "gfx906 kernel is not available for AMDCL2 platform" << std::endl;
+            if (in_device.binaryFormat == BF_ROCm)
+                asmProgramFileName = "kernels/lyra441p2/rev3/lyra441p2_gfx906_rocm.bin";
 
             m_clProgramLyra441p2 = cluCreateProgramWithBinaryFromFile(m_clContext, in_device.clId, asmProgramFileName);
             if (m_clProgramLyra441p2 == NULL)

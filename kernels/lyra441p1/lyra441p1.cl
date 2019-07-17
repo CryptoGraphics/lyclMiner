@@ -1,5 +1,11 @@
-// lyra441p1 kernel.
-// Author: CryptoGraphics ( CrGraphics@protonmail.com )
+/*
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version. See LICENSE for more details.
+ */
 
 #define rotr64(x, n) ((n) < 32 ? (amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n)) | ((ulong)amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n)) << 32)) : (amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n) - 32) | ((ulong)amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n) - 32) << 32)))
 
@@ -52,8 +58,6 @@ typedef union {
     uint4 h4[8];
     ulong4 h8[4];
 } lyraState_t;
-
-// TODO: make hashes const?
 
 __attribute__((reqd_work_group_size(256, 1, 1)))
 __kernel void lyra441p1(__global uint* hashes, __global uint* lyraStates)
@@ -115,5 +119,5 @@ __kernel void lyra441p1(__global uint* hashes, __global uint* lyraStates)
     lyraState->hl4[6] = state[6];
     lyraState->hl4[7] = state[7];
 
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }

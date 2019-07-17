@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 CryptoGraphics ( CrGraphics@protonmail.com )
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -728,7 +728,7 @@ void* workerThread_lyra2REv3( void *userdata )
 int main(int argc, char** argv)
 {
     Log::print(Log::LT_Notice, "*** lyclMiner beta %s. ***", PACKAGE_VERSION);
-    Log::print(Log::LT_Notice, "Developer: CryptoGraphics ( CrGraphics@protonmail.com ).\n");
+    Log::print(Log::LT_Notice, "Developer: CryptoGraphics.\n");
 
     //-----------------------------------------------------------------------------
     // Config file management

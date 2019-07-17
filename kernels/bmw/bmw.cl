@@ -183,5 +183,5 @@ __kernel void bmw(__global uint* hashes)
     hash->h4[1].z = final_s[14];
     hash->h4[1].w = final_s[15];
 
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }

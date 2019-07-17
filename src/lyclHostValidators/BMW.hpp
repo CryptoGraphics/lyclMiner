@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 CryptoGraphics ( CrGraphics@protonmail.com )
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free

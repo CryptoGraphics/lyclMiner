@@ -171,8 +171,6 @@ __kernel void bmw(__global uint* hashes, __global uint* output, const uint targe
     Compression256(message, dh);
     Compression256(dh, final_s);
     
-    barrier(CLK_LOCAL_MEM_FENCE);
-
     if(final_s[15] <= target)
     {
         //atomic_xchg(output, gid);
@@ -181,4 +179,5 @@ __kernel void bmw(__global uint* hashes, __global uint* output, const uint targe
         //atomic_inc(output+1);
         output[ai+1] = gid;
     }
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }

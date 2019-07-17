@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 CryptoGraphics ( CrGraphics@protonmail.com )
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -37,11 +37,12 @@ namespace lycl
     //-----------------------------------------------------------------------------
     typedef enum
     {
-        AP_None  = 0,
-        AP_GFX6  = 1,
-        AP_GFX7  = 2,
-        AP_GFX8  = 3,
-        AP_GFX9  = 4
+        AP_None     = 0,
+        AP_GFX6     = 1,
+        AP_GFX7     = 2,
+        AP_GFX8     = 3,
+        AP_GFX9     = 4,
+        AP_GFX906   = 5
     } EAsmProgram;
     //-----------------------------------------------------------------------------
     typedef enum
@@ -129,6 +130,8 @@ namespace lycl
             out_asm_name = "gfx9";
         else if (!device_name.compare("gfx905"))
             out_asm_name = "gfx9";
+        else if (!device_name.compare("gfx906+sram-ecc"))
+            out_asm_name = "gfx906";
         else if (!device_name.compare("gfx906"))
             out_asm_name = "gfx9";
         else if (!device_name.compare("gfx907"))
@@ -148,6 +151,8 @@ namespace lycl
             result = AP_GFX7;
         else if (arch_name.find("gfx8") != std::string::npos)
             result = AP_GFX8;
+        else if (arch_name.find("gfx906") != std::string::npos)
+            result = AP_GFX906;
         else if (arch_name.find("gfx9") != std::string::npos)
             result = AP_GFX9;
         else

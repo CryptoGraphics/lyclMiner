@@ -1,6 +1,15 @@
+/*
+ * Copyright 2018-2019 CryptoGraphics <CrGr@protonmail.com>.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version. See LICENSE for more details.
+ */
+
 // skein256 kernel
 // Based on cuda implementation from the ccminer project(Provos Alexis, Tanguy Pruvot and others).
-// OpenCL port and AMDGCN specific optimizations were done by CryptoGraphics ( CrGraphics@protonmail.com ).
+// OpenCL port and AMDGCN specific optimizations were done by CryptoGraphics.
 
 #define ROTR64(x, n) ((n) < 32 ? (amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n)) | ((ulong)amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n)) << 32)) : (amd_bitalign((uint)(x), (uint)((x) >> 32), (uint)(n) - 32) | ((ulong)amd_bitalign((uint)((x) >> 32), (uint)(x), (uint)(n) - 32) << 32)))
 
@@ -391,5 +400,5 @@ __kernel void skein(__global uint* hashes)
     hash->h2[2] = p2;
     hash->h2[3] = p3;
 
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_GLOBAL_MEM_FENCE);
 }
